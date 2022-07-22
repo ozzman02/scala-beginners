@@ -124,4 +124,94 @@ object Exercises {
 
   */
 
+  /*
+      OOP
+
+        1. Implement a Novel and a Writer
+
+          Writer: first name, surname, year
+            - method fullName -> concatenation of first name and surname
+
+           Novel: name, year of release, author (instance of writer)
+            - method authorAge -> age of the author at the year of release
+            - method isWrittenBy(Author)
+            - method copy(new year of release) -> new instance of Novel
+            
+            Answer:
+  
+            class Writer(val firstName: String, val surname: String, val year: Int) {
+              def fullName(): String = {
+                this.firstName.concat(" ").concat(this.surname)
+              }
+              override def toString = s"Writer($firstName, $surname, $year)"
+            }
+
+            class Novel(val name: String, val yearOfRelease: Int, val author: Writer) {
+              def authorAge(): Int = {
+                this.yearOfRelease - this.author.year
+              }
+              def isWrittenBy(author: Writer): Boolean = {
+                this.author == author
+              }
+              def copy(newYearOfRelease: Int): Novel = {
+                new Novel(this.name, newYearOfRelease, this.author)
+              }
+              override def toString = s"Novel($name, $yearOfRelease, $author)"
+            }
+
+        2. Implement a Counter class
+            - receives an Int
+            - method current Count
+            - method increment/decrement -> new Counter
+            - overload increment/decrement to receive an int (increment or decrement by) -> new Counter
+
+            class Counter(val count: Int = 0) {
+              def inc: Counter = {
+                println("Incrementing")
+                new Counter(this.count + 1)
+              }
+              def dec: Counter = {
+                println("Decrementing")
+                new Counter(this.count - 1)
+              }
+              def inc(n: Int): Counter = {
+                if (n <= 0) this
+                else inc.inc(n-1)
+              }
+              def dec(n: Int): Counter = {
+                if (n <= 0) this
+                else dec.dec(n-1)
+              }
+              def print(): Unit = println(count)
+            }
+
+  */
+
+  /*
+      Method notations
+
+        1. Overload the + operator
+            mary + "the rockstar" => new person "Mary (the rockstar)"
+
+              def +(nickName: String): Person = {
+                new Person(s"$name ($nickName)", favoriteMovie)
+              }
+
+        2. Add age to the Person class with default 0 value and add a unary + operator
+          +mary => mary with the age incremented
+
+        3. Add a "learns" method in the Person class => "Mary learns Scala"
+           Add a "learnsScala" method, calls learns method with "Scala"
+           Use it in postfix notation
+
+        4. Overload the apply method
+           mary.apply(2) => "Mary watched Inception 2 times"
+
+
+
+
+
+
+  */
+
 }
