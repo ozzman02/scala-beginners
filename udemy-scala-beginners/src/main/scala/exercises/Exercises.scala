@@ -197,21 +197,414 @@ object Exercises {
                 new Person(s"$name ($nickName)", favoriteMovie)
               }
 
+              println((mary + "The Rockstar")())
+              println((mary + "The Rockstar").apply())
+
         2. Add age to the Person class with default 0 value and add a unary + operator
           +mary => mary with the age incremented
+
+              def unary_+ : Person = new Person(name, favoriteMovie, age + 1)
+
+              println((+mary).age)
 
         3. Add a "learns" method in the Person class => "Mary learns Scala"
            Add a "learnsScala" method, calls learns method with "Scala"
            Use it in postfix notation
 
+              def learns(thing: String): String = {
+                s"$name is learning $thing"
+              }
+
+              def learnsScala = this learns "Scala"
+
+              println(mary learnsScala)
+
         4. Overload the apply method
            mary.apply(2) => "Mary watched Inception 2 times"
 
+              def apply(n: Int): String = s"$name watched $favoriteMovie $n times"
+
+              println(mary.apply(2))
+  */
+
+  /*
+      Inheritance
+
+        Create a MyList class
+
+          - head = first element of the list
+          - tail = remainder of the list
+          - isEmpty = is the list empty?
+          - add(int) = returns a new list with the element added
+          - toString = a string representation of the list
+
+            abstract class MyList {
+              
+              def head: Int
+              
+              def tail: MyList
+              
+              def isEmpty: Boolean
+              
+              def add(element: Int): MyList
+              
+              def printElements: String
+              
+              override def toString: String = "[" + printElements + "]"
+  
+            }
+
+            object Empty extends MyList {
+
+              override def head: Int = throw new NoSuchElementException()
+
+              override def tail: MyList = throw new NoSuchElementException()
+
+              override def isEmpty: Boolean = true
+
+              override def add(element: Int): MyList = new Cons(element, Empty)
+
+              override def printElements: String = ""
+
+            }
+
+            class Cons(h: Int, t: MyList) extends MyList {
+
+              override def head: Int = h
+
+              override def tail: MyList = t
+
+              override def isEmpty: Boolean = false
+
+              override def add(element: Int): MyList = new Cons(element, this)
+
+              override def printElements: String = {
+                if (t.isEmpty) "" + h
+                else h + " " + t.printElements
+              }
+
+            }
+
+            object LinkedListTest extends App {
+              val list = new Cons(1, Empty)
+              val anotherList = new Cons(1, new Cons(2, new Cons(3, Empty)))
+              println(list.head)
+              println(anotherList.tail.head)
+              println(list.add(4).head)
+              println(list.isEmpty)
+
+              // Polymorphic call
+              println(anotherList.toString)
+            }
+
+  */
+
+  /*
+      Generics
+
+        1. Expand MyList to be generic
+
+            abstract class MyGenericList[+A] {
+              def head: A
+              def tail: MyGenericList[A]
+              def isEmpty: Boolean
+              def add[B >: A](element: B): MyGenericList[B]
+              def printElements: String
+              override def toString: String = "[" + printElements + "]"
+            }
+
+          object OtherEmpty extends MyGenericList[Nothing] {
+            override def head: Nothing = throw new NoSuchElementException()
+            override def tail: MyGenericList[Nothing] = throw new NoSuchElementException()
+            override def isEmpty: Boolean = true
+            override def add[B >: Nothing](element: B): MyGenericList[B] = new OtherCons(element, OtherEmpty)
+            override def printElements: String = ""
+          }
+
+          class OtherCons[+A](h: A, t: MyGenericList[A]) extends MyGenericList[A] {
+            override def head: A = h
+            override def tail: MyGenericList[A] = t
+            override def isEmpty: Boolean = false
+            override def add[B >: A](element: B): MyGenericList[B] = new OtherCons(element, this)
+            override def printElements: String = {
+              if (t.isEmpty) "" + h
+              else s"$h ${t.printElements}"
+            }
+          }
+  
+    */
+
+  /*
+      Object Oriented
+
+          1. Generic trait MyPredicate[-T] with a little method test(T) => boolean
+          2. Generic trait MyTransformer[-A,B] with a method transform(A) => B
+          3. MyList:
+              -map(transformer) => MyList
+              -filter(predicate) => MyList
+              -flatMap(transformer from A to MyList[B]) => MyList[B]
+
+              class EvenPredicate extends MyPredicate[Int]
+              class StringToIntTransformer extends MyTransformer[String, Int]
+
+              [1,2,3].map(n * 2) = [2,4,6]
+              [1,2,3,4].filter(n % 2) = [2,4]
+              [1,2,3].flatMap(n => [n, n + 1]) => [1,2,2,3,3,4]
+
+              Answer:
+
+                abstract class MyList[+A] {
+                  def head: A
+                  def tail: MyList[A]
+                  def isEmpty: Boolean
+                  def add[B >: A](element: B): MyList[B]
+                  def printElements: String
+                  def map[B](transformer: MyTransformer[A, B]): MyList[B]
+                  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+                  def filter(predicate: MyPredicate[A]): MyList[A]
+                  def ++[B >: A](list: MyList[B]): MyList[B]
+                  override def toString: String = "[" + printElements + "]"
+                }
+
+                object Empty extends MyList[Nothing] {
+                  override def head: Nothing = throw new NoSuchElementException()
+                  override def tail: MyList[Nothing] = throw new NoSuchElementException()
+                  override def isEmpty: Boolean = true
+                  override def add[B >: Nothing](element: B): MyList[B] = new Cons(element, Empty)
+                  override def printElements: String = ""
+                  override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+                  override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+                  override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+                  override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
+                }
+
+                class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                  override def head: A = h
+                  override def tail: MyList[A] = t
+                  override def isEmpty: Boolean = false
+                  override def add[B >: A](element: B): MyList[B] = new Cons(element, this)
+                  override def printElements: String = {
+                    if (t.isEmpty) "" + h
+                    else s"$h ${t.printElements}"
+                  }
+                  override def map[B](transformer: MyTransformer[A, B]): MyList[B] = {
+                    new Cons(transformer.transform(h), t.map(transformer))
+                  }
+                  override def filter(predicate: MyPredicate[A]): MyList[A] = {
+                    if (predicate.test(h)) {
+                      new Cons(h, t.filter(predicate))
+                    } else {
+                      t.filter(predicate)
+                    }
+                  }
+                  override def ++[B >: A](list: MyList[B]): MyList[B] = {
+                    new Cons(h, t ++ list)
+                  }
+                  override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
+                    transformer.transform(h) ++ t.flatMap(transformer)
+                  }
+                }
+
+                trait MyPredicate[-T] {
+                  def test(element: T): Boolean
+                }
+
+                trait MyTransformer[-A, B] {
+                  def transform(element: A): B
+                }
+
+                object LinkedListTest extends App {
+
+                  val listOfIntegers: MyList[Int] = new Cons(1, new Cons(2, new Cons(3, Empty)))
+                  val listOfStrings: MyList[String] = new Cons("Hello", new Cons("Scala!!", Empty))
+                  val anotherListOfIntegers: MyList[Int] = new Cons(4, new Cons(5, Empty))
+
+                  println(listOfIntegers.toString)
+                  println(listOfStrings.toString)
+
+                  println(listOfIntegers.map(new MyTransformer[Int, Int] {
+                    override def transform(element: Int): Int = element * 2
+                  }).toString)
+
+                  println(listOfIntegers.filter(new MyPredicate[Int] {
+                    override def test(element: Int): Boolean = {
+                      element % 2 == 0
+                    }
+                  }).toString)
+
+                  println((listOfIntegers ++ anotherListOfIntegers).toString)
+
+                  println(listOfIntegers.flatMap(new MyTransformer[Int, MyList[Int]] {
+                    override def transform(element: Int): MyList[Int] = new Cons(element, new Cons(element + 1, Empty))
+                  }).toString)
+                }
+
+  */
+
+  /*
+      Object Oriented - Case Classes
+
+            1. Expand MyList - use case classes and case objects
+
+                Answer:
+
+                  abstract class MyList[+A] {
+                    def head: A
+                    def tail: MyList[A]
+                    def isEmpty: Boolean
+                    def add[B >: A](element: B): MyList[B]
+                    def printElements: String
+                    def map[B](transformer: MyTransformer[A, B]): MyList[B]
+                    def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+                    def filter(predicate: MyPredicate[A]): MyList[A]
+                    def ++[B >: A](list: MyList[B]): MyList[B]
+                    override def toString: String = "[" + printElements + "]"
+                  }
+
+                  case object Empty extends MyList[Nothing] {
+                    override def head: Nothing = throw new NoSuchElementException()
+                    override def tail: MyList[Nothing] = throw new NoSuchElementException()
+                    override def isEmpty: Boolean = true
+                    override def add[B >: Nothing](element: B): MyList[B] = new Cons(element, Empty)
+                    override def printElements: String = ""
+                    override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+                    override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+                    override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+                    override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
+                  }
+
+                  class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                    override def head: A = h
+                    override def tail: MyList[A] = t
+                    override def isEmpty: Boolean = false
+                    override def add[B >: A](element: B): MyList[B] = new Cons(element, this)
+                    override def printElements: String = {
+                      if (t.isEmpty) "" + h
+                      else s"$h ${t.printElements}"
+                    }
+                    override def map[B](transformer: MyTransformer[A, B]): MyList[B] = {
+                      new Cons(transformer.transform(h), t.map(transformer))
+                    }
+                    override def filter(predicate: MyPredicate[A]): MyList[A] = {
+                      if (predicate.test(h)) {
+                        new Cons(h, t.filter(predicate))
+                      } else {
+                        t.filter(predicate)
+                      }
+                    }
+                    override def ++[B >: A](list: MyList[B]): MyList[B] = {
+                      new Cons(h, t ++ list)
+                    }
+                    override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
+                      transformer.transform(h) ++ t.flatMap(transformer)
+                    }
+                  }
+
+                  trait MyPredicate[-T] {
+                    def test(element: T): Boolean
+                  }
+
+                  trait MyTransformer[-A, B] {
+                    def transform(element: A): B
+                  }
+
+                  object LinkedListTest extends App {
+
+                    val listOfIntegers: MyList[Int] = new Cons(1, new Cons(2, new Cons(3, Empty)))
+                    val clonedListOfIntegers: MyList[Int] = new Cons(1, new Cons(2, new Cons(3, Empty)))
+                    val listOfStrings: MyList[String] = new Cons("Hello", new Cons("Scala!!", Empty))
+                    val anotherListOfIntegers: MyList[Int] = new Cons(4, new Cons(5, Empty))
+
+                    println(listOfIntegers.toString)
+                    println(listOfStrings.toString)
+
+                    println(listOfIntegers.map(new MyTransformer[Int, Int] {
+                      override def transform(element: Int): Int = element * 2
+                    }).toString)
+
+                    println(listOfIntegers.filter(new MyPredicate[Int] {
+                      override def test(element: Int): Boolean = {
+                        element % 2 == 0
+                      }
+                    }).toString)
+
+                    println((listOfIntegers ++ anotherListOfIntegers).toString)
+
+                    println(listOfIntegers.flatMap(new MyTransformer[Int, MyList[Int]] {
+                      override def transform(element: Int): MyList[Int] = new Cons(element, new Cons(element + 1, Empty))
+                    }).toString)
+
+                    // This will print true
+                    println(clonedListOfIntegers == listOfIntegers)
+
+                  }
+
+  */
+
+  /*
+      Object Oriented - Exceptions
+
+        1. Crash your program with an OutOfMemoryError
+
+            val array = Array.ofDim[Int](Int.MaxValue)
+
+        2. Crash with StackOverflowError
+
+            def infinite: Int = 1 + infinite
+            val noLimit = infinite
+
+        3. PocketCalculator
+            - add(x, y)
+            - subtract(x, y)
+            - multiply(x, y)
+            - divide(x, y)
+
+            Throw
+              - OverflowException if add(x, y) exceeds INT.MAX_VALUE
+              - UnderflowException if subtract(x, y) exceeds INT.MIN_VALUE
+              - MathCalculationException for division by zero
 
 
+              class OverflowException extends RuntimeException
+              class UnderflowException extends RuntimeException
+              class MathCalculationException extends RuntimeException("Division by 0")
+
+              object PocketCalculator {
+
+                def add(x: Int, y: Int): Int = {
+                  val result = x + y
+                  if (x > 0 && y > 0) throw new OverflowException
+                  else if (x < 0 && y < 0 && result > 0) throw new UnderflowException
+                  else result
+                }
+
+                def subtract(x: Int, y: Int): Int = {
+                  val result = x - y
+                  if (x > 0 && y < 0 && result < 0) throw new OverflowException
+                  else if (x < 0 && y > 0 && result > 0) throw new UnderflowException
+                  else result
+                }
+
+                def multiply(x: Int, y: Int): Int = {
+                  val result = x * y
+                  if (x > 0 && y > 0 && result < 0) throw new OverflowException
+                  else if (x < 0 && y < 0 && result < 0) throw new OverflowException
+                  else if (x > 0 && y < 0 && result > 0) throw new UnderflowException
+                  else if (x < 0 && y > 0 && result > 0) throw new UnderflowException
+                  else result
+                }
+
+                def divide(x: Int, y: Int): Int = {
+                  if (y == 0) throw new MathCalculationException
+                  else x / y
+                }
+
+              }
+
+              //println(PocketCalculator.add(Int.MaxValue, 10))
+              println(PocketCalculator.divide(2,0))
 
 
 
   */
-
 }
