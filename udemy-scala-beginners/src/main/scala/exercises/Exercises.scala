@@ -607,4 +607,461 @@ object Exercises {
 
 
   */
+
+  /*
+      Functional programming
+
+        1. Function which takes 2 strings and concatenates them
+
+            val strJoiner = new ((String, String) => String) {
+              override def apply(string1: String, string2: String): String = {
+                string1.concat(string2)
+              }
+            }
+
+          println(strJoiner("Hello ", "World"))
+
+        2. Go to the list implementation and transfor MyPredicate and MyTransformer into FunctionTypes
+
+            On class MyList[+A]
+
+              // def map[B](transformer: Function1[A, B]): MyList[B]
+              def map[B](transformer: (A) => B): MyList[B]
+
+              // def flatMap[B](transformer: Function1[A, MyList[B]]): MyList[B]
+              def flatMap[B](transformer: (A) => MyList[B]): MyList[B]
+
+              // def filter(predicate: Function1[A, Boolean]): MyList[A]
+              def filter(predicate: (A) => Boolean): MyList[A]
+
+            On object Empty
+
+              // override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+              override def map[B](transformer: Nothing => B): MyList[B] = Empty
+
+              // override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+              override def flatMap[B](transformer: Nothing => MyList[B]): MyList[B] = Empty
+
+              // override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+              override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
+
+            On class Cons
+
+              /*
+                override def map[B](transformer: MyTransformer[A, B]): MyList[B] = {
+                  new Cons(transformer.transform(h), t.map(transformer))
+                }
+              */
+              override def map[B](transformer: A => B): MyList[B] = {
+                new Cons(transformer(h), t.map(transformer))
+              }
+
+              /*
+                override def filter(predicate: MyPredicate[A]): MyList[A] = {
+                  if (predicate.test(h)) {
+                    new Cons(h, t.filter(predicate))
+                  } else {
+                    t.filter(predicate)
+                  }
+                }
+              */
+              override def filter(predicate: A => Boolean): MyList[A] = {
+                if (predicate(h)) {
+                  new Cons(h, t.filter(predicate))
+                } else {
+                   t.filter(predicate)
+                }
+              }
+
+              /*
+                override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
+                  transformer.transform(h) ++ t.flatMap(transformer)
+                }
+              */
+              override def flatMap[B](transformer: A => MyList[B]): MyList[B] = {
+                transformer(h) ++ t.flatMap(transformer)
+              }
+
+        3. Define a function which takes an int and returns another function which takes an int and returns an int
+          - what's the type of the function
+          - how to do it
+
+            val superAdder: Function1[Int, Function1[Int, Int]] = new Function1[Int, Function1[Int, Int]] {
+              override def apply(x: Int): Function1[Int,Int] = new Function1[Int, Int] {
+                override def apply(y: Int): Int = x + y
+              }
+            }
+
+            val superAdderCaller = superAdder(3)(4)
+            println(superAdderCaller)
+  */
+  /*
+      Anonymous Functions
+
+        1. MyList: replace all functionX calls with lambdas
+
+            println(listOfIntegers.map(element => element * 2).toString)
+            println(listOfIntegers.map(_ * 2).toString)
+
+            println(listOfIntegers.filter(element => element % 2 == 0).toString)
+            println(listOfIntegers.filter(_ % 2 == 0).toString)
+
+            Underscore notation can't be used here because we use the element two times in the implementation
+
+              println(listOfIntegers.flatMap(element => new Cons(element, new Cons(element + 1, Empty))).toString)
+
+        2. Rewrite the "special" adder as an anonymous function
+
+            val superAdder: (Int) => (Int => Int) = new Function1[Int, Function1[Int, Int]] {
+              override def apply(x: Int): (Int) => Int = new Function1[Int, Int] {
+                override def apply(y: Int): Int = x + y
+              }
+            }
+  
+            val superAdd = (x: Int) => (y: Int) => x + y
+            println(superAdd(3)(4))
+  */
+  /*
+        HOFs & Curries
+
+          1. Expand MyList
+
+            - foreach method A => Unit
+
+                [1,2,3].foreach(x => println(x))
+
+                  abstract class MyList[+A] {
+                    def foreach(f: A => Unit): Unit
+                  }
+
+                  case object Empty extends MyList[Nothing] {
+                    override def foreach(f: Nothing => Unit): Unit = ()
+                  }
+
+                  case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                    override def foreach(f: A => Unit): Unit = {
+                      f(h)
+                      t.foreach(f)
+                    }
+                  }
+
+                  object LinkedListTest extends App {
+                    listOfIntegers.foreach(x => println(x))
+                  }
+
+            - sort function ((A,A) => Int) = MyList
+
+                [1,2,3].sort((x, y) => y - x) => [3,2,1]
+
+                    abstract class MyList[+A] {
+                      def sort(compare: (A, A) => Int): MyList[A]
+                    }
+
+                    case object Empty extends MyList[Nothing] {
+                      override def sort(compare: (Nothing, Nothing) => Int) = Empty
+                    }
+
+                    case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                      override def sort(compare: (A, A) => Int): MyList[A] = {
+                        def insert(x: A, sortedList: MyList[A]): MyList[A] = {
+                          if (sortedList.isEmpty) new Cons(x, Empty)
+                          else if (compare(x, sortedList.head) <= 0) new Cons(x, sortedList)
+                          else new Cons(sortedList.head, insert(x, sortedList.tail))
+                        }
+                        val sortedTail = t.sort(compare)
+                        insert(h, sortedTail)
+                      }
+                    }
+
+                    object LinkedListTest extends App {
+                      println(listOfIntegers.sort((x, y) => y - x))
+                    }
+
+            - zipWith (list, (A, A) => B) => MyList[B]
+
+                [1,2,3].zipWith([4,5,6], x * y) => [1 * 4, 2 * 5, 3 * 6] = [4, 10, 18]
+
+                    abstract class MyList[+A] {
+                      def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C]
+                    }
+
+                    case object Empty extends MyList[Nothing] {
+                      override def zipWith[B, C](list: MyList[B], zip: (Nothing, B) => C): MyList[C] = {
+                        if (!list.isEmpty) throw new RuntimeException("Lists do not have the same length")
+                        else Empty
+                      }
+                    }
+
+                    case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                      override def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C] = {
+                        if (list.isEmpty) throw new RuntimeException("Lists do not have the same length")
+                        else new Cons(zip(h, list.head), t.zipWith(list.tail, zip))
+                      }
+                    }
+
+                    object LinkedListTest extends App {
+                      println(anotherListOfIntegers.zipWith[String, String](listOfStrings, _ + "-" + _))
+                    }
+
+            - fold(start)(function) => a value (curried function)
+
+                [1, 2, 3].fold(0)(x + y) = 6
+
+                      abstract class MyList[+A] {
+                        def fold[B](start: B)(operator: (B, A) => B): B
+                      }
+
+                      case object Empty extends MyList[Nothing] {
+                        override def fold[B](start: B)(operator: (B, Nothing) => B): B = start
+                      }
+
+                      case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
+                        override def fold[B](start: B)(operator: (B, A) => B): B = {
+                          t.fold(operator(start, h))(operator)
+                        }
+                      }
+
+                      object LinkedListTest extends App {
+                        println(listOfIntegers.fold(0)(_ + _))
+                      }
+
+          2. toCurry(f: (Int, Int) => Int) => (Int => Int => Int)
+             fromCurry(f: (Int => Int => Int)) => (Int, Int) => Int
+
+              def toCurry(f: (Int, Int) => Int): (Int => Int => Int) = {
+                x => y => f(x, y)
+              }
+
+              def fromCurry(f: (Int => Int => Int)): (Int, Int) => Int = {
+                (x, y) => f(x)(y)
+              }
+
+          3. compose(f, g) => x => f(g(x))
+             andThen(f, g) => x => g(f(x))
+
+              def compose[A,B,T](f: A => B, g: T => A): T => B = {
+                x => f(g(x))
+              }
+
+              def andThen[A,B,C](f: A => B, g: B => C): A => C = {
+                x => g(f(x))
+              }
+
+  */
+  /*
+      Map, FlatMap, Filter and for-comprehensions
+
+        1. Does MyList support for-comprehensions?
+
+            for-comprehensions are written by the compiler into chains of map, flatMaps and filters but for
+            that to work we need a special signature for map, flatMap and filter
+
+              map(f: A => B) => MyList[B]
+              filter(p: A => Boolean) => MyList[A]
+              flatMap(f: A => MyList[B]) => MyList[B]
+
+        2. A small collection of at least one element - Maybe[+T]
+          - map, flatMap, filter
+
+            abstract class Maybe[+T] {
+              def map[B](f: T => B): Maybe[B]
+              def flatMap[B](f: T => Maybe[B]): Maybe[B]
+              def filter(p: T => Boolean): Maybe[T]
+            }
+
+            case object MaybeNot extends Maybe[Nothing] {
+              override def map[B](f: Nothing => B): Maybe[B] = MaybeNot
+              override def flatMap[B](f: Nothing => Maybe[B]): Maybe[B] = MaybeNot
+              override def filter(p: Nothing => Boolean): Maybe[Nothing] = MaybeNot
+            }
+
+            case class Just[+T](value: T) extends Maybe[T] {
+              override def map[B](f: T => B): Maybe[B] = Just(f(value))
+              override def flatMap[B](f: T => Maybe[B]): Maybe[B] = f(value)
+              override def filter(p: T => Boolean): Maybe[T] = {
+                if (p(value)) this
+                else MaybeNot
+              }
+            }
+
+            object MaybeTest extends App {
+              val just3 = Just(3)
+              println(just3)
+              println(just3.map(_ * 2))                       // Just(6)
+              println(just3.flatMap(x => Just(x % 2 == 0)))   // Just(false)
+              println(just3.filter(_ % 2 == 0))               // MaybeNot
+            }
+  */
+  /*
+      Tuples and Maps
+
+          1. What would happen if I had two original entries "Jim" -> 555 and "Jim" -> 900?
+
+              Careful with mapping keys !!!
+
+                val testPhoneBook = Map(("Jim", 555), "Daniel" -> 789, "JIM" -> 9000).withDefaultValue(-1)
+                println(testPhoneBook) // prints Map(Jim -> 555, Daniel -> 789, JIM -> 9000)
+                println(testPhoneBook.map(pair => pair._1.toLowerCase -> pair._2)) // prints Map(jim -> 9000, daniel -> 789)
+
+          2. Overly simplified social network based on maps
+
+            Person = String
+              - add a person to the network
+              - remove
+              - friend (mutual)
+              - unfriend
+
+              - number of friends of the person
+              - person with most friends
+              - how many people have no friends
+              - if there is a social connection between two people (direct or not)
+
+            Answer
+
+              def add(network: Map[String, Set[String]], person: String): Map[String, Set[String]] = {
+                network + (person -> Set())
+              }
+
+              def friend(network: Map[String, Set[String]], a: String, b: String): Map[String, Set[String]] = {
+                val friendsA = network(a)
+                val friendsB = network(b)
+                network + (a -> (friendsA + b)) + (b -> (friendsB + a))
+              }
+
+              def unfriend(network: Map[String, Set[String]], a: String, b: String): Map[String, Set[String]] = {
+                val friendsA = network(a)
+                val friendsB = network(b)
+                network + (a -> (friendsA - b)) + (b -> (friendsB - a))
+              }
+
+              def remove(network: Map[String, Set[String]], person: String): Map[String, Set[String]] = {
+                def removeAux(friends: Set[String], networkAcc: Map[String, Set[String]]): Map[String, Set[String]] = {
+                  if (friends.isEmpty) networkAcc
+                  else removeAux(friends.tail, unfriend(networkAcc, person, friends.head))
+                }
+                val unfriended = removeAux(network(person), network)
+                unfriended - person
+              }
+
+              def nFriends(network: Map[String, Set[String]], person: String): Int = {
+                if (!network.contains(person)) 0
+                else (network(person).size)
+              }
+
+              def mostFriends(network: Map[String, Set[String]]): String = {
+                network.maxBy(pair => pair._2.size)._1
+              }
+
+              def nPeopleWithNoFriends(network: Map[String, Set[String]]): Int = {
+                network.view.filterKeys(k => network(k).isEmpty).size
+              }
+
+              def socialConnection(network: Map[String, Set[String]], a: String, b: String): Boolean = {
+                @tailrec
+                def bfs(target: String, consideredPeople: Set[String], discoveredPeople: Set[String]): Boolean = {
+                  if (discoveredPeople.isEmpty) false
+                  else {
+                    val person = discoveredPeople.head
+                    if (person == target) true
+                    else if (consideredPeople.contains(person)) bfs(target, consideredPeople, discoveredPeople.tail)
+                    else bfs(target, consideredPeople + person, discoveredPeople.tail ++ network(person))
+                  }
+                }
+                bfs(b, Set(), network(a) + a)
+              }
+
+              val empty: Map[String, Set[String]] = Map()
+              val network = add(add(empty, "Bob"), "Gina")
+              println(network) // prints Map(Bob -> Set(), Gina -> Set())
+              println(friend(network, "Bob", "Gina"))
+              println(unfriend(friend(network, "Bob", "Gina"), "Bob", "Gina"))
+              println(remove(friend(network, "Bob", "Gina"), "Bob"))
+
+              val people = add(add(add(empty, "Bob"), "Gina"), "Jim")
+              val jimBob = friend(people, "Bob", "Jim")
+              val peopleTest = friend(jimBob, "Bob", "Gina")
+              println(peopleTest)
+              println(nFriends(peopleTest, "Bob"))
+              println(mostFriends(peopleTest))
+              println(nPeopleWithNoFriends(peopleTest))
+              println(socialConnection(peopleTest, "Gina", "Jim"))
+              println(socialConnection(network, "Gina", "Bob"))
+  */
+  /*
+       Options
+
+        val config: Map[String, String] = Map("host" -> "176.45.36.1", "port" -> "90")
+
+        class Connection {
+          def connect = "Connected" // connect to some server
+        }
+
+        object Connection {
+          val random = new Random(System.nanoTime())
+          def apply(host: String, port: String): Option[Connection] = {
+          if (random.nextBoolean()) Some(new Connection)
+            else None
+          }
+        }
+
+        val host = config.get("host")
+        val port = config.get("port")
+
+        val connection: Option[Connection] = host.flatMap(h => port.flatMap(p => Connection.apply(h, p)))
+        val connectionStatus: Option[String] = connection.map(c => c.connect)
+
+        println(connectionStatus)
+        connectionStatus.foreach(println)
+
+        /* Chained method solution */
+        config.get("host")
+          .flatMap(host => config.get("port")
+          .flatMap(port => Connection(host, port))
+          .map(connection => connection.connect))
+          .foreach(println)
+  
+        /* For-Comprehensions */
+        val forConnectionStatus = for {
+          host <- config.get("host")
+          port <- config.get("port")
+          connection <- Connection(host, port)
+        } yield connection.connect
+
+        forConnectionStatus.foreach(println)
+  */
+  /*
+      Patter Matching
+
+        1. Simple function uses PM takes an Expr => human readable form
+
+          Sum(Number(2), Number(3)) => 2 + 3
+          Sum(Sum(Number(2), Number(3)), Number(4)) => 2 + 3 + 4
+          Prod(Sum(Number(2), Number(1)), Number(3)) => (2+1) * 3
+          Sum(Prod(Number(2), Number(1)), Number(3)) => 2 * 1 + 3
+
+            trait Expr
+            case class Number(n: Int) extends Expr
+            case class Sum(e1: Expr, e2: Expr) extends Expr
+            case class Prod(e1: Expr, e2: Expr) extends Expr
+
+            def show(e: Expr): String = e match {
+              case Number(n) => s"$n"
+              case Sum(e1, e2) => show(e1) + " + " + show(e2)
+              case Prod(e1, e2) =>
+                def maybeShowParentheses(expr: Expr) = expr match {
+                  case Prod(_, _) => show(expr)
+                  case Number(_) => show(expr)
+                  case _ => "(" + show(expr) + ")"
+                }
+                maybeShowParentheses(e1) + " * " + maybeShowParentheses(e2)
+            }
+
+            println(show(Sum(Number(2), Number(3))))
+            println(show(Sum(Sum(Number(2), Number(3)), Number(4))))
+            println(show(Prod(Sum(Number(2), Number(1)), Number(3))))
+            println(show(Sum(Prod(Number(2), Number(1)), Number(3))))
+
+            println(show(Prod(Sum(Number(2), Number(1)), Sum(Number(3), Number(4)))))
+  */
+
 }

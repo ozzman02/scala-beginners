@@ -12,17 +12,29 @@ abstract class MyList[+A] {
 
   def printElements: String
 
-  def map[B](transformer: MyTransformer[A, B]): MyList[B]
+  // def map[B](transformer: Function1[A, B]): MyList[B]
+  def map[B](transformer: (A) => B): MyList[B]
 
-  def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B]
+  // def flatMap[B](transformer: Function1[A, MyList[B]]): MyList[B]
+  def flatMap[B](transformer: (A) => MyList[B]): MyList[B]
 
-  def filter(predicate: MyPredicate[A]): MyList[A]
+  // def filter(predicate: Function1[A, Boolean]): MyList[A]
+  def filter(predicate: (A) => Boolean): MyList[A]
 
   // Concatenation method
   def ++[B >: A](list: MyList[B]): MyList[B]
 
   // Polymorphic call
   override def toString: String = "[" + printElements + "]"
+
+  // HOFs
+  def foreach(f: A => Unit): Unit
+
+  def sort(compare: (A, A) => Int): MyList[A]
+
+  def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C]
+
+  def fold[B](start: B)(operator: (B, A) => B): B
 
 }
 
@@ -38,13 +50,32 @@ case object Empty extends MyList[Nothing] {
 
   override def printElements: String = ""
 
-  override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+  /* map, flatMap and filter are Higher-Order functions
+      Higher-Order functions either receive functions as parameters or return functions as result
+  */
 
-  override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+  // override def map[B](transformer: MyTransformer[Nothing, B]): MyList[B] = Empty
+  override def map[B](transformer: Nothing => B): MyList[B] = Empty
 
-  override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+  // override def flatMap[B](transformer: MyTransformer[Nothing, MyList[B]]): MyList[B] = Empty
+  override def flatMap[B](transformer: Nothing => MyList[B]): MyList[B] = Empty
+
+  // override def filter(predicate: MyPredicate[Nothing]): MyList[Nothing] = Empty
+  override def filter(predicate: Nothing => Boolean): MyList[Nothing] = Empty
 
   override def ++[B >: Nothing](list: MyList[B]): MyList[B] = list
+
+  // HOFs
+  override def foreach(f: Nothing => Unit): Unit = ()
+
+  override def sort(compare: (Nothing, Nothing) => Int) = Empty
+
+  override def zipWith[B, C](list: MyList[B], zip: (Nothing, B) => C): MyList[C] = {
+    if (!list.isEmpty) throw new RuntimeException("Lists do not have the same length")
+    else Empty
+  }
+
+  override def fold[B](start: B)(operator: (B, Nothing) => B): B = start
 
 }
 
@@ -70,8 +101,13 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
       = new Cons(2, new Cons(4, new Cons(6, Empty.map(n * 2))))
       = new Cons(2, new Cons(4, new Cons(6, Empty)))
   */
-  override def map[B](transformer: MyTransformer[A, B]): MyList[B] = {
-    new Cons(transformer.transform(h), t.map(transformer))
+  /*
+    override def map[B](transformer: MyTransformer[A, B]): MyList[B] = {
+      new Cons(transformer.transform(h), t.map(transformer))
+    }
+  */
+  override def map[B](transformer: A => B): MyList[B] = {
+    new Cons(transformer(h), t.map(transformer))
   }
 
   /*
@@ -81,8 +117,17 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
         = new Cons(2, Empty.filter(n % 2 == 0))
         = new Cons(2, Empty)
   */
-  override def filter(predicate: MyPredicate[A]): MyList[A] = {
-    if (predicate.test(h)) {
+  /*
+    override def filter(predicate: MyPredicate[A]): MyList[A] = {
+      if (predicate.test(h)) {
+        new Cons(h, t.filter(predicate))
+      } else {
+        t.filter(predicate)
+      }
+    }
+  */
+  override def filter(predicate: A => Boolean): MyList[A] = {
+    if (predicate(h)) {
       new Cons(h, t.filter(predicate))
     } else {
       t.filter(predicate)
@@ -106,19 +151,59 @@ case class Cons[+A](h: A, t: MyList[A]) extends MyList[A] {
       = [1,2] ++ [2,3] ++ Empty
       = [1,2,2,3]
   */
-  override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
-    transformer.transform(h) ++ t.flatMap(transformer)
+  /*
+    override def flatMap[B](transformer: MyTransformer[A, MyList[B]]): MyList[B] = {
+      transformer.transform(h) ++ t.flatMap(transformer)
+    }
+  */
+  override def flatMap[B](transformer: A => MyList[B]): MyList[B] = {
+    transformer(h) ++ t.flatMap(transformer)
   }
 
+  // HOFs
+
+  override def foreach(f: A => Unit): Unit = {
+    f(h)
+    t.foreach(f)
+  }
+
+  override def sort(compare: (A, A) => Int): MyList[A] = {
+
+    def insert(x: A, sortedList: MyList[A]): MyList[A] = {
+      if (sortedList.isEmpty) new Cons(x, Empty)
+      else if (compare(x, sortedList.head) <= 0) new Cons(x, sortedList)
+      else new Cons(sortedList.head, insert(x, sortedList.tail))
+    }
+
+    val sortedTail = t.sort(compare)
+
+    insert(h, sortedTail)
+  }
+
+  override def zipWith[B, C](list: MyList[B], zip: (A, B) => C): MyList[C] = {
+    if (list.isEmpty) throw new RuntimeException("Lists do not have the same length")
+    else new Cons(zip(h, list.head), t.zipWith(list.tail, zip))
+  }
+
+  /*
+      [1, 2, 3].fold(0)(+) =
+      = [2, 3].fold(1)(+)
+      = [3].fold(3)(+)
+      = [].fold(6)(+)
+      = 6
+  */
+  override def fold[B](start: B)(operator: (B, A) => B): B = {
+    t.fold(operator(start, h))(operator)
+  }
 }
 
-trait MyPredicate[-T] {
+/*trait MyPredicate[-T] {
   def test(element: T): Boolean
 }
 
 trait MyTransformer[-A, B] {
   def transform(element: A): B
-}
+}*/
 
 object LinkedListTest extends App {
 
@@ -147,23 +232,54 @@ object LinkedListTest extends App {
   println(listOfIntegers.toString)
   println(listOfStrings.toString)
 
-  println(listOfIntegers.map(new MyTransformer[Int, Int] {
-    override def transform(element: Int): Int = element * 2
-  }).toString)
+  /*
+    println(listOfIntegers.map(new (Int => Int) {
+      override def apply(element: Int): Int = element * 2
+    }).toString)
+  */
+  println(listOfIntegers.map(element => element * 2).toString)
 
-  println(listOfIntegers.filter(new MyPredicate[Int] {
-    override def test(element: Int): Boolean = {
-      element % 2 == 0
-    }
-  }).toString)
+  /*
+    println(listOfIntegers.filter(new (Int => Boolean) {
+      override def apply(element: Int): Boolean = {
+        element % 2 == 0
+      }
+    }).toString)
+  */
+  println(listOfIntegers.filter(element => element % 2 == 0).toString)
 
   println((listOfIntegers ++ anotherListOfIntegers).toString)
 
-  println(listOfIntegers.flatMap(new MyTransformer[Int, MyList[Int]] {
-    override def transform(element: Int): MyList[Int] = new Cons(element, new Cons(element + 1, Empty))
-  }).toString)
+  /*
+    println(listOfIntegers.flatMap(new (Int => MyList[Int]) {
+      override def apply(element: Int): MyList[Int] = new Cons(element, new Cons(element + 1, Empty))
+    }).toString)
+  */
+  println(listOfIntegers.flatMap(element => new Cons(element, new Cons(element + 1, Empty))).toString)
 
   // This will print true
   println(clonedListOfIntegers == listOfIntegers)
+
+  // HOFs
+  listOfIntegers.foreach(x => println(x))
+  println(listOfIntegers.sort((x, y) => y - x))
+  println(anotherListOfIntegers.zipWith[String, String](listOfStrings, _ + "-" + _))
+  println(listOfIntegers.fold(0)(_ + _))
+
+  // for-comprehensions
+  val combinations = for {
+    n <- listOfIntegers
+    string <- listOfStrings
+  } yield n + "-" + string
+
+  println(combinations)
+
+  // a for-comprehension is also an expression
+  println(
+    for {
+      n <- listOfIntegers
+      string <- listOfStrings
+    } yield n + "-" + string
+  )
 
 }
